@@ -5,6 +5,8 @@ import "net"
 import "sync"
 import "time"
 
+var done_count int = 0
+
 func main() {
 	var array []byte = make([]byte, 512)
 
@@ -14,7 +16,7 @@ func main() {
 
 	var wg sync.WaitGroup
 	service := "192.168.130.129:8888"
-	tcpAddr, _ := net.ResolveTCPAddr("tcp4", service)
+	//tcpAddr, _ := net.ResolveTCPAddr("tcp4", service)
 	for i := 0; i < 50000; i += 1 {
 		wg.Add(1)
 		go func(id int) {
@@ -25,7 +27,7 @@ func main() {
 				wg.Done()
 			}()
 
-			conn, err := net.DialTCP("tcp", nil, tcpAddr)
+			conn, err := net.DialTimeout("tcp", service, time.Second*20)
 			if err != nil {
 				fmt.Printf("%d conn err: %s\n", id, err)
 				return
@@ -33,7 +35,7 @@ func main() {
 
 			defer func() { conn.Close() }()
 
-			conn.SetReadDeadline(time.Now().Add(180 * time.Second))
+			conn.SetReadDeadline(time.Now().Add(20 * time.Second))
 			var result []byte = make([]byte, 512)
 			count, err := conn.Read(result)
 			if err != nil {
@@ -42,12 +44,14 @@ func main() {
 			}
 
 			if string(result) != string(array) {
-				fmt.Printf("%d data err: %d:%s", id, count, result)
+				fmt.Printf("%d data err: %d:%s\n", id, count, result)
 			}
 
-			time.Sleep(1800 * time.Second)
+			done_count = done_count + 1
+			time.Sleep(60 * time.Second)
 		}(i)
 	}
 
 	wg.Wait()
+	fmt.Printf("\n%d done\n", done_count)
 }
